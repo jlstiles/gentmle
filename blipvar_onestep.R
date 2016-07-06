@@ -11,6 +11,7 @@ library(origami)
 library(geepack)
 library(BlipVariance)
 
+#
 detectCores()
 cl = makeCluster(8, type = "SOCK")
 registerDoSNOW(cl)
@@ -53,7 +54,7 @@ gendata=function(n){
   W2=rnorm(n)
   W3=rbinom(n,1,.3)
   W4=rnorm(n)
-  A=rbinom(n,1,g0(W1,W2,W3,W4))  
+  A=rbinom(n,1,g0(W1,W2,W3,W4))
   Y=rbinom(n,1,Q0(A,W1,W2,W3,W4))
   data.frame(A,W1,W2,W3,W4,Y)
 }
@@ -81,8 +82,8 @@ sim_onestep = function(n){
   newdata$Y=NULL
   SL.library = "SL.glm"
   Qfit=SuperLearner(data$Y,X,newX=newdata, family = binomial(),
-                    SL.library=SL.library,  method = "method.NNLS", 
-                    id = NULL, verbose = FALSE, control = list(), 
+                    SL.library=SL.library,  method = "method.NNLS",
+                    id = NULL, verbose = FALSE, control = list(),
                     cvControl = list(V=10), obsWeights = NULL)
   gfit=glm(A~W1+W2+W3+W4,data=data,family=binomial(link="logit"))
   gk=predict(gfit,type="response")
@@ -90,18 +91,18 @@ sim_onestep = function(n){
   Qk = Qfit$SL.predict[1:n]
   Q1k = Qfit$SL.predict[(n+1):(2*n)]
   Q0k = Qfit$SL.predict[(2*n+1):(3*n)]
-  
+
   initdata = data.frame(Qk=Qk,Q1k=Q1k,Q0k=Q0k,gk=gk,A=data$A,Y=data$Y)
   sigmaATE.info = gentmle(initdata,sigmaATE_estimate,sigmaATE_update,max_iter=100)
   ci_regular = ci_gentmle(sigmaATE.info)[2:5]
   Q = cbind(QAW=Qk,Q0W=Q0k,Q1W=Q1k)
   depsilon = .001
   gbounds <- Qbounds <- c(10^-9, 1-10^-9)
-  
-  res.onestep <- oneStepblipvar(Y = data$Y, A = data$A, Q = Q, g1W = gk, 
-                            depsilon = depsilon, max_iter = max(1000, 2/depsilon), 
+
+  res.onestep <- oneStepblipvar(Y = data$Y, A = data$A, Q = Q, g1W = gk,
+                            depsilon = depsilon, max_iter = max(1000, 2/depsilon),
                             gbounds = gbounds, Qbounds = Qbounds)
-  
+
   sd = sqrt(res.onestep$var.psi)
   est = res.onestep$psi
   ci_onestep = c(est = est, sd = sd,lower = est - 1.96*sd, upper = est + 1.96*sd)
@@ -116,34 +117,34 @@ sim_onestep = function(n){
 #-----------------------------------One-Step TMLE for ATT parameter  ----------------------------------------
 oneStepblipvar <- function(Y, A, Q, g1W, depsilon, max_iter, gbounds, Qbounds){
 	n <- length(Y)
-	calcLoss <- function(Q) -mean(Y * log(Q[,"QAW"]) + (1-Y) * log(1 - Q[,"QAW"])) 
+	calcLoss <- function(Q) -mean(Y * log(Q[,"QAW"]) + (1-Y) * log(1 - Q[,"QAW"]))
 	psi.prev <- psi  <- var((Q[,"Q1W"] - Q[, "Q0W"]))
 	H1.AW =  2*(Q[,"Q1W"]-Q[,"Q0W"]-mean(Q[,"Q1W"]-Q[,"Q0W"]))*(A/g1W-(1-A)/(1-g1W))
 	IC.prev <- IC.cur <- H1.AW*(Y-Q[, "QAW"])+
 	  (Q[,"Q1W"]-Q[,"Q0W"]-mean(Q[,"Q1W"]-Q[,"Q0W"]))^2-psi
-	
+
 	deriv <-  mean(H1.AW* (Y-Q[, "QAW"]))
-	
+
 	if (deriv > 0) { depsilon <- -depsilon}
 	loss.prev <- Inf
  	loss.cur <-  calcLoss(Q)
- 	if(is.nan(loss.cur) | is.na(loss.cur) | is.infinite(loss.cur)) { 
+ 	if(is.nan(loss.cur) | is.na(loss.cur) | is.infinite(loss.cur)) {
  		loss.cur <- Inf
  		loss.prev <- 0
  	}
  	iter <-  0
  	while (loss.prev > loss.cur & iter < max_iter){
-		IC.prev <-  IC.cur		
+		IC.prev <-  IC.cur
 		Q.prev <- Q
-		g1W <- .bound(g1W, gbounds) 
+		g1W <- .bound(g1W, gbounds)
  		H1 <- cbind(HAW = 2*(Q.prev[,"Q1W"]-Q.prev[,"Q0W"]-mean(Q.prev[,"Q1W"]-Q.prev[,"Q0W"]))*(A/g1W-(1-A)/(1-g1W)),
 					  H0W =   - 2*(Q.prev[,"Q1W"]-Q.prev[,"Q0W"]-mean(Q.prev[,"Q1W"]-Q.prev[,"Q0W"]))*(1-A)/(1-g1W),
-					  H1W =    2*(Q.prev[,"Q1W"]-Q.prev[,"Q0W"]-mean(Q.prev[,"Q1W"]-Q.prev[,"Q0W"]))*A/g1W) 
- 		
+					  H1W =    2*(Q.prev[,"Q1W"]-Q.prev[,"Q0W"]-mean(Q.prev[,"Q1W"]-Q.prev[,"Q0W"]))*A/g1W)
+
  		Q  <- .bound(plogis(qlogis(Q.prev) - depsilon * H1), Qbounds)
- 		
+
  		psi.prev <- psi
- 		psi <- var((Q[,"Q1W"] - Q[, "Q0W"])) 
+ 		psi <- var((Q[,"Q1W"] - Q[, "Q0W"]))
  		loss.prev <- loss.cur
  		loss.cur <- calcLoss(Q)
  		IC.cur <- 2*(Q[,"Q1W"]-Q[,"Q0W"]-mean(Q[,"Q1W"]-Q[,"Q0W"]))*(A/g1W-(1-A)/(1-g1W))*(Y-Q[, "QAW"])+

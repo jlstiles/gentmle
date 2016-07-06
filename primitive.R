@@ -10,7 +10,7 @@ library(plyr)
 library(origami)
 library(geepack)
 
-
+#
 gendata.blip=function(n){
   U1 = runif(n,0,1)
   W1= -1*as.numeric(U1<.5)+1*as.numeric(U1>=.5)

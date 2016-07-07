@@ -11,7 +11,7 @@ library(origami)
 library(geepack)
 library(BlipVariance)
 
-#
+##
 detectCores()
 cl = makeCluster(8, type = "SOCK")
 registerDoSNOW(cl)

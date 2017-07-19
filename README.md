@@ -1,7 +1,6 @@
 gentmle
 =======
-
-gentmle - Skeleton for General TMLEs
+This package is outdated and should not be used
 
 --------------------------
 

@@ -1,6 +1,7 @@
 gentmle
 =======
-This package is outdated and should not be used, use the code below for the latest version
+This package is outdated and should not be used, 
+Use the code below to download a different version that is recent and good.
 
 --------------------------
 
